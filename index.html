@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ku" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>گەڕان ب سیستەمێ زیرەک - ES Group</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- jsPDF Library for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        /* شێوازی فۆنت بۆ پشتگیریکردنی ئەلفوبێی عەرەبی و کوردی (Noto Sans Arabic فۆنتێکی زۆر جوانی کوردییە) */
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;700;900&display=swap');
+        body {
+            font-family: 'Noto Sans Arabic', sans-serif;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        /* Style the search button for a nice, modern look */
+        #searchButton {
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+        #searchButton:hover {
+            box-shadow: 0 6px 10px -1px rgba(0, 0, 0, 0.15), 0 3px 6px -2px rgba(0, 0, 0, 0.15);
+            transform: translateY(-1px);
+        }
+        /* Style for the result content to make it look professional */
+        #resultContent p {
+            margin-bottom: 1.5rem; /* زۆرکرنا مەودای د ناڤبەرا پەرەگرافاندا */
+        }
+        #resultContent h1, #resultContent h2 {
+            font-weight: 700; /* قەبارێ نڤیسینێ زێدە بکە */
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        /* Scrollbar styles for dark mode compatibility */
+        .dark ::-webkit-scrollbar {
+            width: 8px;
+        }
+        .dark ::-webkit-scrollbar-track {
+            background: #1f2937;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background-color: #4b5563;
+            border-radius: 20px;
+            border: 2px solid #1f2937;
+        }
+        .light ::-webkit-scrollbar {
+            width: 8px;
+        }
+        .light ::-webkit-scrollbar-track {
+            background: #f3f4f6;
+        }
+        .light ::-webkit-scrollbar-thumb {
+            background-color: #9ca3af;
+            border-radius: 20px;
+            border: 2px solid #f3f4f6;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen p-4 sm:p-8 flex flex-col">
+
+    <!-- Main Container -->
+    <div class="max-w-4xl mx-auto w-full flex-grow">
+        
+        <!-- Header and Theme Toggle -->
+        <header class="flex justify-between items-center mb-8 pb-4 border-b border-gray-200 dark:border-gray-700">
+            <h1 class="text-3xl font-extrabold text-indigo-600 dark:text-indigo-400">گەڕانا زیرەک (ES Group)</h1>
+            <button id="themeToggle" class="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:ring-2 hover:ring-indigo-500 transition duration-300" title="گوهۆرینا شێوازێ روناهی/تاری">
+                <!-- Moon/Sun Icon -->
+                <svg id="sunIcon" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                <svg id="moonIcon" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+            </button>
+        </header>
+
+        <!-- Search Input and Button -->
+        <div class="flex flex-col sm:flex-row gap-4 mb-8">
+            <input type="text" id="searchInput" placeholder="بابەت یان پرسیارا خو ل ڤێرە بنڤێسە..." class="flex-grow p-4 text-xl border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100" dir="rtl">
+            <button id="searchButton" class="w-full sm:w-auto px-6 py-4 text-xl font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl disabled:bg-indigo-400 disabled:cursor-not-allowed">
+                گەڕان
+            </button>
+        </div>
+
+        <!-- Loading Indicator -->
+        <div id="loading" class="hidden text-center text-indigo-500 dark:text-indigo-300 mb-6">
+            <div class="flex items-center justify-center space-x-2">
+                <svg class="animate-spin h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>... زانیاری دهێنە ئامادەکرن</span>
+            </div>
+        </div>
+
+        <!-- Results Area -->
+        <div id="resultsContainer" class="hidden bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 transition duration-300">
+            
+            <div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-200 dark:border-gray-700">
+                 <h2 class="text-2xl font-bold text-indigo-600 dark:text-indigo-400">ئەنجامێ گەڕانێ</h2>
+                 <!-- دوگمەی دابەزاندنا PDF ئینایە سەرڤە -->
+                <button id="downloadPdfButton" class="px-4 py-2 text-base font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg shadow-md transition duration-300 disabled:bg-green-400 disabled:cursor-not-allowed">
+                    دابەزاندنا PDF
+                </button>
+            </div>
+
+            <!-- Content Area - The actual generated text -->
+            <div id="resultContent" class="prose dark:prose-invert max-w-none text-xl leading-relaxed text-gray-700 dark:text-gray-300" dir="rtl">
+                <!-- Content will be inserted here -->
+            </div>
+            
+            <div class="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <p class="text-sm font-semibold text-gray-500 dark:text-gray-400">
+                    <span class="text-indigo-500 font-bold">ES Group:</span> ئەڤ وەڵامە ب رێیا سیستەمێ زیرەکێ دەستکرد بۆ هەوە هاتیە ئامادەکرن.
+                </p>
+            </div>
+        </div>
+        
+        <!-- Error Message -->
+        <div id="errorMessage" class="hidden mt-6 p-4 text-red-700 bg-red-100 border border-red-400 rounded-lg dark:bg-red-900 dark:text-red-200">
+            <!-- Error messages will be placed here -->
+        </div>
+
+    </div>
+    
+    <!-- Footer for ES Group Copyright -->
+    <footer class="mt-8 pt-4 border-t border-gray-200 dark:border-gray-700 text-center">
+        <p class="text-sm text-gray-600 dark:text-gray-400">
+            © 2025 ES Group. هەموو مافێن پاراستینە.
+        </p>
+    </footer>
+    
+    <script type="module">
+        // Global Constants
+        // API_URL ئاماژە دکەت ب فانکشنی سێرڤەرلێس (ل رێکا Vercel دهێتە رێڤەبرن)
+        const API_URL = '/api/search'; 
+        const MAX_RETRIES = 5;
+        const BASE_DELAY = 1000; // 1 second
+
+        // DOM Elements
+        const themeToggle = document.getElementById('themeToggle');
+        const searchInput = document.getElementById('searchInput');
+        const searchButton = document.getElementById('searchButton');
+        const loadingIndicator = document.getElementById('loading');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const resultContent = document.getElementById('resultContent');
+        const downloadPdfButton = document.getElementById('downloadPdfButton');
+        const errorMessageDiv = document.getElementById('errorMessage');
+        const sunIcon = document.getElementById('sunIcon');
+        const moonIcon = document.getElementById('moonIcon');
+
+        // --- Theme Management (Light/Dark Mode) ---
+
+        /**
+         * بارکرنا شێوازێ روناهی/تاری
+         */
+        function loadTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+                document.body.classList.add('dark');
+                document.body.classList.remove('light');
+                sunIcon.classList.remove('hidden');
+                moonIcon.classList.add('hidden');
+            } else {
+                document.documentElement.classList.remove('dark');
+                document.body.classList.remove('dark');
+                document.body.classList.add('light');
+                sunIcon.classList.add('hidden');
+                moonIcon.classList.remove('hidden');
+            }
+        }
+
+        /**
+         * گوهۆرینا شێوازێ و پاراستنا وی
+         */
+        function toggleTheme() {
+            if (document.documentElement.classList.contains('dark')) {
+                localStorage.setItem('theme', 'light');
+            } else {
+                localStorage.setItem('theme', 'dark');
+            }
+            loadTheme();
+        }
+
+        // Initialize theme on load
+        loadTheme();
+
+        themeToggle.addEventListener('click', toggleTheme);
+
+        // --- API Interaction & Error Handling ---
+
+        /**
+         * پەیاکرنا پەیامەکێ هەڵە بۆ بەکارهێنەری
+         * @param {string} message - The error message to display.
+         */
+        function displayError(message) {
+            errorMessageDiv.textContent = message;
+            errorMessageDiv.classList.remove('hidden');
+            loadingIndicator.classList.add('hidden');
+            searchButton.disabled = false;
+        }
+
+        /**
+         * پاقژکرنا پەیامێن هەڵە
+         */
+        function clearError() {
+            errorMessageDiv.classList.add('hidden');
+            errorMessageDiv.textContent = '';
+        }
+
+        /**
+         * بانگەوازی بۆ Serverless Function ب Exponential Backoff
+         * @param {object} payload - The request body for the API.
+         * @param {number} retries - Current retry count.
+         * @returns {Promise<object>} The JSON response from the API.
+         */
+        async function fetchWithRetry(payload, retries = 0) {
+            const delay = BASE_DELAY * Math.pow(2, retries) + Math.random() * 500;
+            
+            try {
+                // Now calling the local Vercel endpoint /api/search
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    // Throw error if serverless function returns non-200 status or contains an error field
+                    throw new Error(data.error || `هەڵەی گەڕانێ: ${response.status}`);
+                }
+
+                return data; // Should contain the generated text
+            } catch (error) {
+                if (retries < MAX_RETRIES) {
+                    console.warn(`Request failed, retrying in ${delay / 1000}s... Attempt ${retries + 1}/${MAX_RETRIES}`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    return fetchWithRetry(payload, retries + 1);
+                } else {
+                    console.error("Final search request failed after multiple retries:", error);
+                    throw new Error("نەهات شیان پەیوەندی ب خزمەتگوزاریا سیستەمێ زیرەک ڤە بهێت کرن. تکایە دووبارە هەوڵ بدە. (گرفتی سێرڤەر)");
+                }
+            }
+        }
+
+        /**
+         * جێبەجێکرنا لۆژیکی گەڕانێ
+         */
+        async function handleSearch() {
+            clearError();
+            const query = searchInput.value.trim();
+            if (!query) {
+                displayError("تکایە پرسیارەکێ یان بابەتەکی بۆ گەڕانێ بنڤێسە.");
+                return;
+            }
+
+            searchButton.disabled = true;
+            loadingIndicator.classList.remove('hidden');
+            resultsContainer.classList.add('hidden');
+            resultContent.innerHTML = '';
+            downloadPdfButton.disabled = true;
+
+            // Send only the query to the serverless function. 
+            // The function will retrieve the API key securely.
+            const payload = { query };
+
+            try {
+                const result = await fetchWithRetry(payload);
+
+                if (result && result.text) {
+                    resultContent.innerHTML = formatText(result.text);
+                    resultsContainer.classList.remove('hidden');
+                    downloadPdfButton.disabled = false;
+                } else {
+                    displayError("چ وەڵامەک بۆ پرسیارا تە نەهاتە دیتن.");
+                }
+
+            } catch (error) {
+                displayError(error.message);
+            } finally {
+                loadingIndicator.classList.add('hidden');
+                searchButton.disabled = false;
+            }
+        }
+
+        /**
+         * چێکرنا شێوازی بۆ دەقەکە
+         * @param {string} text - The raw text from the API.
+         * @returns {string} - HTML formatted text.
+         */
+        function formatText(text) {
+            // Replace double newlines with paragraph tags
+            let html = text.replace(/\n\n/g, '</p><p>');
+            // Replace single newlines (within a logical block) with a line break
+            html = html.replace(/\n/g, '<br>');
+            // Wrap the whole thing in a paragraph, if it's not already structured
+            if (!html.startsWith('<p>') && !html.startsWith('<h') && !html.startsWith('<ul')) {
+                 html = `<p>${html}</p>`;
+            }
+            return html;
+        }
+
+
+        // --- PDF Generation ---
+
+        /**
+         * دروستکرن و دابەزاندنا PDF
+         */
+        function downloadPdf() {
+            const { jsPDF } = window.jspdf;
+            
+            const doc = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4',
+                putOnlyUsedFonts: true,
+                floatPrecision: 16
+            });
+            
+            const contentElement = document.getElementById('resultContent');
+            const titleText = document.getElementById('searchInput').value.trim() || "بابەتێ_گەڕانێ";
+            const currentTheme = document.documentElement.classList.contains('dark') ? 'تاریک' : 'رووناهی';
+            
+            // Temporary container to capture the styled content without UI elements
+            const tempDiv = document.createElement('div');
+            tempDiv.dir = 'rtl';
+            tempDiv.style.fontFamily = 'Noto Sans Arabic, sans-serif';
+            tempDiv.style.padding = '20px'; // Add padding for the screenshot
+            
+            // Add a clean title and ES Group footer for the PDF document screenshot
+            tempDiv.innerHTML = `
+                <div style="text-align: center; margin-bottom: 25px; border-bottom: 1px solid #ccc; padding-bottom: 10px;">
+                    <h1 style="font-size: 28px; font-weight: 900; color: #4F46E5;">گەڕانا زیرەک (ES Group)</h1>
+                    <p style="font-size: 16px; margin-top: 5px;">بابەت: ${titleText}</p>
+                </div>
+                <div style="font-size: 18px; line-height: 1.8; text-align: justify; padding: 10px; color: ${currentTheme === 'تاریک' ? '#E5E7EB' : '#1F2937'};">
+                    ${contentElement.innerHTML}
+                </div>
+                <div style="border-top: 1px solid #ccc; margin-top: 25px; padding-top: 10px; font-size: 12px; color: ${currentTheme === 'تاریک' ? '#9CA3AF' : '#6B7280'}; text-align: left;">
+                    <p>دروستکری ل رێکەفتی: ${new Date().toLocaleDateString('ar-IQ')}</p>
+                </div>
+            `;
+
+            // Append temp div to body to ensure styles are computed (but keep it hidden)
+            tempDiv.style.position = 'absolute';
+            tempDiv.style.right = '-9999px';
+            tempDiv.style.width = '190mm'; // Set a fixed width for A4 content
+            document.body.appendChild(tempDiv);
+            
+            // Use html2canvas to render the HTML content to a canvas, then add to PDF
+            html2canvas(tempDiv, {
+                scale: 2, // Improve resolution
+                useCORS: true,
+                backgroundColor: currentTheme === 'تاریک' ? '#1f2937' : '#ffffff' // Set background color
+            }).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const imgWidth = 190; // A4 width minus margins (210 - 10*2)
+                const pageHeight = 295; // A4 height (297)
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                let heightLeft = imgHeight;
+                let position = 10; // Top margin (10mm)
+
+                // Add image to PDF
+                doc.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+                heightLeft -= (pageHeight - position);
+
+                // For multi-page content
+                while (heightLeft > -10) { // -10 tolerance
+                    position = heightLeft - imgHeight + 10; // Adjust position for next page
+                    doc.addPage();
+                    doc.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+                }
+
+                // Save the PDF
+                const filename = `Gerrana_Badini_ES_Group_${new Date().getTime()}.pdf`;
+                doc.save(filename);
+
+                // Clean up the temporary div
+                document.body.removeChild(tempDiv);
+            }).catch(e => {
+                console.error("PDF generation failed:", e);
+                displayError("نەهات شیان فایلا PDF بهێت دروستکرن. تکایە دووبارە هەوڵ بدە.");
+                // Ensure cleanup on error
+                if(document.body.contains(tempDiv)) {
+                    document.body.removeChild(tempDiv); 
+                }
+            });
+        }
+
+        // --- Event Listeners ---
+        searchButton.addEventListener('click', handleSearch);
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleSearch();
+            }
+        });
+        downloadPdfButton.addEventListener('click', downloadPdf);
+        
+        // Initial Message to show the app is ready
+        setTimeout(() => {
+            if (searchInput.value.trim() === "") {
+                searchInput.placeholder = "ماڵپەڕ ئامادەیە! پرسیارا خو بکە...";
+            }
+        }, 1000);
+    </script>
+
+</body>
+</html>
+
+
