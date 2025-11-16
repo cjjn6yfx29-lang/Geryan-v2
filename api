@@ -1,1 +1,73 @@
+// Vercel Serverless Function (Node.js) to securely handle the Gemini API call
+// گرنگ: کلیلێ API ل ڤێرە ناهێتە دانان.
+// دێ کلیلێ ژ گۆڕاوێ ژینگەیی (Environment Variable) ل سەر Vercel وەرگریت.
 
+const API_KEY = process.env.GEMINI_API_KEY;
+const MODEL_NAME = 'gemini-2.5-flash-preview-09-2025';
+
+// System prompt in Badini Kurdish
+const SYSTEM_PROMPT = 
+"تۆ یاریدەدەرەکێ زیرەکێ کوردی (شێوەزارێ بادینی - ب ئەلفوبێیا عەرەبی)ی. وەڵامەکێ ورد و تێر و تەسەل بۆ پرسیارێ بنڤێسە. ب زمانێ کوردیێ بادینی وەڵام بدە و زانیاریێ ب شێوازەکێ فەرمی و جوان رێکخە. ڤێجا بزاڤێ بکە ناڤێ ES Group د ناڤا زانیاریێن ژ ماڵپەڕان هاتینە ئینان بهێتە زێدەکرن، و ل کۆتایا وەڵامێ خو ئەڤ دەستەواژە زێدە بکە: (ب یارمەتیا ES Group هاتیە ئامادەکرن).";
+
+/**
+ * @param {import('@vercel/node').VercelRequest} request
+ * @param {import('@vercel/node').VercelResponse} response
+ */
+export default async function (request, response) {
+
+    // 1. Check API key
+    if (!API_KEY) {
+        return response.status(500).json({
+            error: "کلیلێ API نەهاتیە دانان وەک گۆڕاوێ ژینگەیی (GEMINI_API_KEY) ل Vercel."
+        });
+    }
+
+    // 2. Only allow POST
+    if (request.method !== 'POST') {
+        return response.status(405).json({ error: 'تەنها رێبازا POST قەبوولە.' });
+    }
+
+    const { query } = request.body;
+
+    if (!query) {
+        return response.status(400).json({ error: 'پرسیار (query) پێدڤی یە.' });
+    }
+
+    // 3. Construct API payload
+    const payload = {
+        contents: [{ parts: [{ text: query }] }],
+        tools: [{ google_search: {} }],
+        systemInstruction: {
+            parts: [{ text: SYSTEM_PROMPT }]
+        },
+    };
+
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${API_KEY}`;
+
+    // 4. Call Gemini API
+    try {
+        const geminiResponse = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const result = await geminiResponse.json();
+
+        const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        if (text) {
+            return response.status(200).json({ text });
+        }
+
+        return response.status(500).json({
+            error: "سیستەم جواب ندا. تکایە دواتر دوبارە بکه‌ره‌وه‌."
+        });
+
+    } catch (error) {
+        console.error("Gemini API Error:", error);
+        return response.status(500).json({
+            error: 'هەڵەیەک رووی دا ل پەیوەندی ب سیستەمێ زیرەک.'
+        });
+    }
+}
